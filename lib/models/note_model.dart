@@ -1,4 +1,3 @@
-
 enum AttachmentType {
   image,
   video,
@@ -62,6 +61,7 @@ class Note {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<Attachment> attachments;
+  final String? category;
 
   Note({
     required this.id,
@@ -70,6 +70,7 @@ class Note {
     required this.createdAt,
     required this.updatedAt,
     required this.attachments,
+    this.category,
   });
 
   Note copyWith({
@@ -77,6 +78,8 @@ class Note {
     String? content,
     DateTime? updatedAt,
     List<Attachment>? attachments,
+    String? category,
+    bool clearCategory = false,
   }) {
     return Note(
       id: id,
@@ -85,6 +88,7 @@ class Note {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       attachments: attachments ?? this.attachments,
+      category: clearCategory ? null : (category ?? this.category),
     );
   }
 
@@ -95,6 +99,7 @@ class Note {
       'content': content,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'category': category,
     };
   }
 
@@ -106,6 +111,7 @@ class Note {
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
       attachments: attachments,
+      category: map['category'] as String?,
     );
   }
 }

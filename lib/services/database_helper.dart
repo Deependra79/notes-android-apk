@@ -25,7 +25,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3, // Upgraded version to 3 to support task completion history
+      version: 4, // Upgraded version to 4 to support note categories
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
       onConfigure: _onConfigure,
@@ -43,7 +43,8 @@ class DatabaseHelper {
         title TEXT NOT NULL,
         content TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        category TEXT
       )
     ''');
 
@@ -86,6 +87,11 @@ class DatabaseHelper {
     if (oldVersion < 3) {
       try {
         await db.execute('ALTER TABLE todo_tasks ADD COLUMN completion_history TEXT');
+      } catch (_) {}
+    }
+    if (oldVersion < 4) {
+      try {
+        await db.execute('ALTER TABLE notes ADD COLUMN category TEXT');
       } catch (_) {}
     }
   }

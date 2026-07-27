@@ -23,6 +23,8 @@ class _NoteListScreenState extends State<NoteListScreen> {
   bool _isPasscodeEnabled = false;
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  String _selectedCategoryFilter = 'All';
+  List<String> _allCategories = [];
 
   @override
   void initState() {
@@ -41,7 +43,21 @@ class _NoteListScreenState extends State<NoteListScreen> {
     setState(() {
       _isLoading = true;
     });
-    final notes = await DatabaseHelper.instance.searchNotes(_searchQuery);
+
+    // Extract categories from all notes
+    final allNotes = await DatabaseHelper.instance.getAllNotes();
+    final cats = allNotes.map((n) => n.category).whereType<String>().toSet().toList();
+    cats.sort();
+    _allCategories = cats;
+
+    // Fetch notes matching search query
+    var notes = await DatabaseHelper.instance.searchNotes(_searchQuery);
+
+    // Apply category filter if selected
+    if (_selectedCategoryFilter != 'All') {
+      notes = notes.where((n) => n.category == _selectedCategoryFilter).toList();
+    }
+
     setState(() {
       _notes = notes;
       _isLoading = false;
@@ -263,6 +279,9 @@ class _NoteListScreenState extends State<NoteListScreen> {
               ),
             ),
 
+            // Horizontal Category Filter Bar
+            _buildCategoryFilterBar(theme),
+
             // Note List or Loading Indicator
             Expanded(
               child: _isLoading
@@ -396,6 +415,24 @@ class _NoteListScreenState extends State<NoteListScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (note.category != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              note.category!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                        ],
                         Text(
                           note.title,
                           style: theme.textTheme.titleMedium?.copyWith(
@@ -510,6 +547,57 @@ class _NoteListScreenState extends State<NoteListScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryFilterBar(ThemeData theme) {
+    if (_allCategories.isEmpty) return const SizedBox.shrink();
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _allCategories.length + 1,
+        itemBuilder: (context, index) {
+          final isAll = index == 0;
+          final catName = isAll ? 'All' : _allCategories[index - 1];
+          final isSelected = isAll
+              ? _selectedCategoryFilter == 'All'
+              : _selectedCategoryFilter == catName;
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: FilterChip(
+              label: Text(catName),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  _selectedCategoryFilter = isAll ? 'All' : catName;
+                });
+                _refreshNotes();
+              },
+              selectedColor: theme.colorScheme.primary.withValues(alpha: 0.15),
+              checkmarkColor: theme.colorScheme.primary,
+              backgroundColor: isDark ? Colors.grey[900] : Colors.grey[100],
+              side: BorderSide(
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.dividerColor.withValues(alpha: 0.1),
+              ),
+              labelStyle: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : (isDark ? Colors.grey[300] : Colors.grey[700]),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

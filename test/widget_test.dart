@@ -69,6 +69,33 @@ void main() {
       expect(aud.type, AttachmentType.audio);
       expect(doc.type, AttachmentType.document);
     });
+
+    test('Note category mapping and copyWith', () {
+      final now = DateTime.now();
+      final note = Note(
+        id: '123-uuid',
+        title: 'Work stuff',
+        content: 'Drafting doc',
+        createdAt: now,
+        updatedAt: now,
+        attachments: [],
+        category: 'Work',
+      );
+
+      final map = note.toMap();
+      expect(map['category'], 'Work');
+
+      final fromMapNote = Note.fromMap(map);
+      expect(fromMapNote.category, 'Work');
+
+      // Test copyWith category clearing
+      final cleared = note.copyWith(clearCategory: true);
+      expect(cleared.category, null);
+
+      // Test copyWith category updating
+      final updated = note.copyWith(category: 'Personal');
+      expect(updated.category, 'Personal');
+    });
   });
 
   group('TodoTask Streak Tests', () {

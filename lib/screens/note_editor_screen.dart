@@ -31,6 +31,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   bool _isSaving = false;
   bool _hasSaved = false;
   final ImagePicker _picker = ImagePicker();
+  String? _selectedCategory;
+  final List<String> _presetCategories = ['Work', 'Personal', 'Ideas', 'Study', 'Important'];
+  final List<String> _customCategories = [];
 
   @override
   void initState() {
@@ -40,6 +43,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       _contentController.text = widget.note!.content;
       _attachments = List.from(widget.note!.attachments);
       _tempNoteId = widget.note!.id;
+      _selectedCategory = widget.note!.category;
+      if (_selectedCategory != null && !_presetCategories.contains(_selectedCategory!)) {
+        _customCategories.add(_selectedCategory!);
+      }
     } else {
       _tempNoteId = const Uuid().v4();
     }
@@ -79,6 +86,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       createdAt: widget.note?.createdAt ?? now,
       updatedAt: now,
       attachments: _attachments,
+      category: _selectedCategory,
     );
 
     if (widget.note == null) {
@@ -485,6 +493,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                       style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
                     ),
                     const SizedBox(height: 12),
+                    
+                    _buildCategorySelector(theme),
+                    
                     // Title Field
                     TextField(
                       controller: _titleController,
@@ -685,6 +696,130 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategorySelector(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    final allCategories = [..._presetCategories, ..._customCategories];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.label_outline,
+              size: 18,
+              color: theme.colorScheme.primary.withValues(alpha: 0.8),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Category:',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+            const Spacer(),
+            if (_selectedCategory != null)
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedCategory = null;
+                  });
+                },
+                child: Text(
+                  'Clear',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red[400],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ...allCategories.map((cat) {
+                final isSelected = _selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ChoiceChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    selectedColor: theme.colorScheme.primary,
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? Colors.white
+                          : (isDark ? Colors.grey[300] : theme.colorScheme.onSurface),
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedCategory = selected ? cat : null;
+                      });
+                    },
+                  ),
+                );
+              }),
+
+              ActionChip(
+                avatar: const Icon(Icons.add, size: 16),
+                label: const Text('Custom...'),
+                labelStyle: const TextStyle(fontSize: 12),
+                onPressed: _showCustomCategoryDialog,
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 24),
+      ],
+    );
+  }
+
+  void _showCustomCategoryDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Custom Category'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'e.g., Finance, Fitness, Travel...',
+            border: OutlineInputBorder(),
+          ),
+          textCapitalization: TextCapitalization.sentences,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = controller.text.trim();
+              if (val.isNotEmpty) {
+                setState(() {
+                  if (!_presetCategories.contains(val) && !_customCategories.contains(val)) {
+                    _customCategories.add(val);
+                  }
+                  _selectedCategory = val;
+                });
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Add'),
+          ),
+        ],
       ),
     );
   }
