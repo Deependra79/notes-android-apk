@@ -918,7 +918,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=$apiKey'),
+        Uri.parse('https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=$apiKey'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'contents': [{
