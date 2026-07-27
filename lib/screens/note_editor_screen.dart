@@ -9,6 +9,8 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import '../models/note_model.dart';
 import '../services/database_helper.dart';
 import '../widgets/video_player_widget.dart';
@@ -680,6 +682,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     tooltip: 'Add media or files',
                     onPressed: _showAttachmentOptions,
                   ),
+                  IconButton(
+                    icon: Icon(Icons.auto_awesome, color: theme.colorScheme.primary),
+                    tooltip: 'AI Assist',
+                    onPressed: _runAiAssist,
+                  ),
                   const Spacer(),
                   if (_isSaving)
                     const SizedBox(
@@ -823,5 +830,208 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _runAiAssist() async {
+    final content = _contentController.text.trim();
+    if (content.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please write some text first for the AI to polish!')),
+      );
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    var apiKey = prefs.getString('gemini_api_key') ?? '';
+
+    if (apiKey.isEmpty) {
+      final keyController = TextEditingController();
+      final userKey = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Configure Gemini API Key'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'AI Assist requires a Gemini API Key to rewrite and polish your notes.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: keyController,
+                decoration: const InputDecoration(
+                  hintText: 'AIzaSy...',
+                  border: OutlineInputBorder(),
+                  labelText: 'Gemini API Key',
+                ),
+                obscureText: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final keyStr = keyController.text.trim();
+                Navigator.pop(context, keyStr);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+
+      if (userKey == null || userKey.isEmpty) return;
+
+      apiKey = userKey;
+      await prefs.setString('gemini_api_key', apiKey);
+    }
+
+    if (!mounted) return;
+
+    // Show loading progress overlay
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('AI Assist is polishing your note...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'contents': [{
+            'parts': [{
+              'text': 'You are a professional editor. Clean up, fix spelling, grammar, structural issues, and rewrite the following note in proper form. Keep the original formatting (paragraphs/bullet points) and detail, but make it sound clean and cohesive. Return ONLY the polished note content. Do NOT include any intro or outro text or explanations:\n\n$content'
+            }]
+          }]
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      // Close the loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (response.statusCode != 200) {
+        throw HttpException('API responded with code ${response.statusCode}: ${response.body}');
+      }
+
+      final Map<String, dynamic> data = json.decode(response.body);
+      final String textResult = data['candidates']?[0]?['content']?['parts']?[0]?['text'] ?? '';
+
+      if (textResult.isEmpty) {
+        throw const FormatException('Empty text candidate returned from API');
+      }
+
+      if (mounted) {
+        final accept = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('AI Assist Suggestion'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'AI suggestion is ready. Review the polished version below:',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'POLISHED SUGGESTION:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).dividerColor.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      child: Text(
+                        textResult,
+                        style: const TextStyle(fontSize: 14, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Keep Original'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Replace Text'),
+              ),
+            ],
+          ),
+        );
+
+        if (accept == true) {
+          setState(() {
+            _contentController.text = textResult;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        // Pop loading dialog if still visible
+        try {
+          Navigator.pop(context);
+        } catch (_) {}
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('AI Assist Error'),
+            content: Text('Failed to polish note text. Error details:\n\n${e.toString()}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await prefs.remove('gemini_api_key');
+                  _runAiAssist();
+                },
+                child: const Text('Change API Key'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 }

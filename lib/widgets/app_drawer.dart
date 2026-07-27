@@ -305,6 +305,16 @@ class _AppDrawerState extends State<AppDrawer> {
                     },
                   ),
 
+                  ListTile(
+                    leading: Icon(
+                      Icons.api_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: const Text('AI Assist API Key'),
+                    subtitle: const Text('Configure Gemini API Key'),
+                    onTap: _showApiKeyDialog,
+                  ),
+
                   const Divider(),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -371,6 +381,60 @@ class _AppDrawerState extends State<AppDrawer> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showApiKeyDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentKey = prefs.getString('gemini_api_key') ?? '';
+    final controller = TextEditingController(text: currentKey);
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Gemini API Key'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter your Gemini API key to enable the AI Assist note polishing helper.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'AIzaSy...',
+                border: OutlineInputBorder(),
+                labelText: 'API Key',
+              ),
+              obscureText: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newKey = controller.text.trim();
+              final navigator = Navigator.of(context);
+              if (newKey.isEmpty) {
+                await prefs.remove('gemini_api_key');
+              } else {
+                await prefs.setString('gemini_api_key', newKey);
+              }
+              navigator.pop();
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
   }
 }
