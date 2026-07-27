@@ -757,7 +757,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     selectedColor: theme.colorScheme.primary,
                     labelStyle: TextStyle(
                       color: isSelected
-                          ? Colors.white
+                          ? theme.colorScheme.onPrimary
                           : (isDark ? Colors.grey[300] : theme.colorScheme.onSurface),
                       fontSize: 12,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
