@@ -152,7 +152,7 @@ class _NoteListScreenState extends State<NoteListScreen> {
                   Row(
                     children: [
                       Text(
-                        'My Notes',
+                        'Note That',
                         style: theme.textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: theme.colorScheme.onSurface,

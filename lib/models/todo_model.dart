@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 class TodoTask {
   final String id;
   final String title;
   final DateTime? lastCompletedDate;
   final int streakCount;
   final DateTime createdAt;
+  final List<DateTime> completionDates;
 
   TodoTask({
     required this.id,
@@ -11,6 +14,7 @@ class TodoTask {
     this.lastCompletedDate,
     required this.streakCount,
     required this.createdAt,
+    this.completionDates = const [],
   });
 
   // Determines if the task is checked off today
@@ -48,21 +52,27 @@ class TodoTask {
   TodoTask toggleCompletion() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final List<DateTime> newHistory = List.from(completionDates);
 
     if (isCompleted) {
       // Currently completed today, user wants to UNCHECK.
-      // We roll back the completion.
-      // If the streak was greater than 1, we set the last completed date to yesterday
-      // and subtract 1 from the streak. Otherwise, we clear it.
+      newHistory.removeWhere((d) => d.year == today.year && d.month == today.month && d.day == today.day);
+      
       final newStreak = streakCount > 0 ? streakCount - 1 : 0;
       final yesterday = today.subtract(const Duration(days: 1));
       
       return copyWith(
         lastCompletedDate: newStreak > 0 ? yesterday : null,
         streakCount: newStreak,
+        completionDates: newHistory,
+        clearLastCompletedDate: newStreak == 0,
       );
     } else {
       // Currently unchecked today, user wants to CHECK.
+      if (!newHistory.any((d) => d.year == today.year && d.month == today.month && d.day == today.day)) {
+        newHistory.add(today);
+      }
+
       final lastCompleted = lastCompletedDate != null
           ? DateTime(lastCompletedDate!.year, lastCompletedDate!.month, lastCompletedDate!.day)
           : null;
@@ -82,6 +92,7 @@ class TodoTask {
       return copyWith(
         lastCompletedDate: now,
         streakCount: newStreak,
+        completionDates: newHistory,
       );
     }
   }
@@ -90,14 +101,16 @@ class TodoTask {
     String? title,
     DateTime? lastCompletedDate,
     int? streakCount,
+    List<DateTime>? completionDates,
+    bool clearLastCompletedDate = false,
   }) {
-    // Allows clearing lastCompletedDate by passing null explicitly
     return TodoTask(
       id: id,
       title: title ?? this.title,
-      lastCompletedDate: lastCompletedDate,
+      lastCompletedDate: clearLastCompletedDate ? null : (lastCompletedDate ?? this.lastCompletedDate),
       streakCount: streakCount ?? this.streakCount,
       createdAt: createdAt,
+      completionDates: completionDates ?? this.completionDates,
     );
   }
 
@@ -108,10 +121,20 @@ class TodoTask {
       'last_completed_date': lastCompletedDate?.toIso8601String(),
       'streak_count': streakCount,
       'created_at': createdAt.toIso8601String(),
+      'completion_history': jsonEncode(completionDates.map((d) => d.toIso8601String()).toList()),
     };
   }
 
   factory TodoTask.fromMap(Map<String, dynamic> map) {
+    final historyStr = map['completion_history'] as String?;
+    final List<DateTime> history = [];
+    if (historyStr != null && historyStr.isNotEmpty) {
+      try {
+        final List<dynamic> decoded = jsonDecode(historyStr);
+        history.addAll(decoded.map((s) => DateTime.parse(s as String)));
+      } catch (_) {}
+    }
+
     return TodoTask(
       id: map['id'] as String,
       title: map['title'] as String,
@@ -120,6 +143,7 @@ class TodoTask {
           : null,
       streakCount: map['streak_count'] as int,
       createdAt: DateTime.parse(map['created_at'] as String),
+      completionDates: history,
     );
   }
 }

@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
       valueListenable: themeNotifier,
       builder: (context, currentMode, child) {
         return MaterialApp(
-          title: 'Local Notes',
+          title: 'Note That',
           debugShowCheckedModeBanner: false,
           
           // Light Theme Design - Chill Sage / Emerald Green & Gold

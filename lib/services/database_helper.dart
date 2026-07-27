@@ -25,7 +25,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2, // Upgraded version to 2 to support todo tasks table
+      version: 3, // Upgraded version to 3 to support task completion history
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
       onConfigure: _onConfigure,
@@ -65,7 +65,8 @@ class DatabaseHelper {
         title TEXT NOT NULL,
         last_completed_date TEXT,
         streak_count INTEGER NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        completion_history TEXT
       )
     ''');
   }
@@ -81,6 +82,11 @@ class DatabaseHelper {
           created_at TEXT NOT NULL
         )
       ''');
+    }
+    if (oldVersion < 3) {
+      try {
+        await db.execute('ALTER TABLE todo_tasks ADD COLUMN completion_history TEXT');
+      } catch (_) {}
     }
   }
 

@@ -176,5 +176,31 @@ void main() {
       expect(completedToday.isCompleted, true);
       expect(completedToday.currentStreak, 1); // Reset and started at 1
     });
+
+    test('Completion history tracking updates when toggling and maps correctly', () {
+      final task = TodoTask(
+        id: 'hist-1',
+        title: 'Drink water',
+        streakCount: 0,
+        createdAt: DateTime.now(),
+        completionDates: [],
+      );
+
+      // Check task today
+      final checked = task.toggleCompletion();
+      expect(checked.completionDates.length, 1);
+      final todayMidnight = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      expect(checked.completionDates.first, todayMidnight);
+
+      // Serialization verification
+      final map = checked.toMap();
+      final fromMap = TodoTask.fromMap(map);
+      expect(fromMap.completionDates.length, 1);
+      expect(fromMap.completionDates.first, todayMidnight);
+
+      // Uncheck task today
+      final unchecked = checked.toggleCompletion();
+      expect(unchecked.completionDates.isEmpty, true);
+    });
   });
 }
