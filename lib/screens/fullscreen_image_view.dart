@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 class FullscreenImageView extends StatelessWidget {
   final String imagePath;
   final String title;
+  final String heroTag;
 
   const FullscreenImageView({
     super.key,
     required this.imagePath,
     required this.title,
+    required this.heroTag,
   });
 
   @override
@@ -30,7 +32,7 @@ class FullscreenImageView extends StatelessWidget {
           clipBehavior: Clip.none,
           maxScale: 4.0,
           child: Hero(
-            tag: imagePath,
+            tag: heroTag,
             child: kIsWeb
                 ? Image.network(
                     imagePath,

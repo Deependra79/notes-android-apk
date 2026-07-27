@@ -544,12 +544,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                                                 builder: (context) => FullscreenImageView(
                                                   imagePath: attachment.filePath,
                                                   title: attachment.displayName,
+                                                  heroTag: attachment.id,
                                                 ),
                                               ),
                                             );
                                           },
                                           child: Hero(
-                                            tag: attachment.filePath,
+                                            tag: attachment.id,
                                             child: kIsWeb
                                                 ? Image.network(
                                                     attachment.filePath,
